@@ -115,10 +115,24 @@ ejecutarlo sin instalar con `python -m jobranker ...`).
 
 | Comando | Para qué sirve |
 |---------|----------------|
-| `jobranker --cv <CV> ...` | Ejecuta el analizador y genera el ranking. |
-| `python -m jobranker ...` | Igual que arriba, sin instalar el script. |
-| `pytest -q` | Corre la suite de pruebas (37 tests). |
+| `jobranker --cv <CV> ...` | Ejecuta el analizador (CLI) y genera el ranking. |
+| `jobranker-web` | Levanta la interfaz web: pega tu CV y busca desde el navegador. |
+| `python -m jobranker ...` | Igual que el CLI, sin instalar el script. |
+| `pytest -q` | Corre la suite de pruebas (40 tests). |
 | `jobranker --help` | Muestra todas las opciones disponibles. |
+
+### Interfaz web (pegar el CV y buscar)
+
+Si prefieres no usar la terminal, hay una pequeña app web donde pegas tu CV en
+texto plano, eliges país/idioma/fuentes y obtienes el ranking en pantalla.
+
+```bash
+pip install -e ".[web]"   # instala FastAPI + Uvicorn
+jobranker-web            # abre http://127.0.0.1:8000
+```
+
+Luego abre `http://127.0.0.1:8000` en tu navegador, pega el CV y pulsa
+**"Buscar ofertas"**. Corre 100% local; no scrapea LinkedIn ni aplica por ti.
 
 ### Opciones del CLI
 
@@ -274,6 +288,7 @@ desglose por componente.
 job-offer-analyzer/
 ├── jobranker/
 │   ├── cli.py            # interfaz de línea de comandos
+│   ├── web.py            # interfaz web (FastAPI): pegar CV y buscar
 │   ├── cv.py             # lectura de CV y extracción de skills
 │   ├── models.py         # modelos Job y CVProfile
 │   ├── scoring.py        # motor de puntaje/ranking
@@ -291,7 +306,7 @@ job-offer-analyzer/
 ## Tests
 
 ```bash
-pytest -q
+pytest -q   # 40 tests
 ```
 
 ## Roadmap

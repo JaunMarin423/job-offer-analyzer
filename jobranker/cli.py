@@ -141,6 +141,24 @@ def gather_jobs(args) -> List[Job]:
     return _dedupe(jobs)
 
 
+def filter_and_rank(profile, jobs: List[Job], country: str = "",
+                    lang_only: bool = False, min_score: float = 0.0):
+    """Apply country/language filters and rank. Returns (scored, notes)."""
+    notes: List[str] = []
+    if country:
+        before = len(jobs)
+        jobs = [j for j in jobs
+                if location_matches_country(j.location, country)]
+        notes.append(f"Filtro por país ({country}): {len(jobs)}/{before} "
+                     "ofertas conservadas (en el país + remotas globales).")
+    if lang_only and profile.languages:
+        before = len(jobs)
+        jobs = [j for j in jobs if j.language() in profile.languages]
+        notes.append(f"Filtro de idioma ({', '.join(profile.languages)}): "
+                     f"{len(jobs)}/{before} ofertas conservadas.")
+    return rank_jobs(profile, jobs, min_score=min_score), notes
+
+
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
 
