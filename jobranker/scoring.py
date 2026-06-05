@@ -11,13 +11,15 @@ from datetime import datetime, timezone
 from typing import Dict, List
 
 from .cv import _contains_term
+from .language import LANGUAGE_NAMES
 from .models import CVProfile, Job, strip_html
 
 # Component weights (must sum to 1.0).
 WEIGHTS: Dict[str, float] = {
-    "skills": 0.50,
-    "role": 0.25,
-    "location": 0.15,
+    "skills": 0.45,
+    "role": 0.20,
+    "location": 0.10,
+    "language": 0.15,
     "seniority": 0.05,
     "recency": 0.05,
 }
@@ -97,6 +99,17 @@ def _seniority_component(profile: CVProfile, job: Job) -> float:
     return 50.0
 
 
+def _language_component(profile: CVProfile, job: Job) -> float:
+    if not profile.languages:
+        return 60.0  # neutral when the user expressed no language preference
+    lang = job.language()
+    if lang in profile.languages:
+        return 100.0
+    if lang == "other":
+        return 40.0
+    return 10.0
+
+
 def _recency_component(job: Job) -> float:
     if not job.publication_date:
         return 50.0
@@ -126,6 +139,7 @@ def score_job(profile: CVProfile, job: Job) -> ScoredJob:
         "skills": skill_score,
         "role": _role_component(profile, job),
         "location": _location_component(profile, job),
+        "language": _language_component(profile, job),
         "seniority": _seniority_component(profile, job),
         "recency": _recency_component(job),
     }
@@ -139,6 +153,8 @@ def score_job(profile: CVProfile, job: Job) -> ScoredJob:
         reasons.append("Title matches a target role")
     if components["location"] >= 100 and profile.locations:
         reasons.append("Location matches your preference")
+    if profile.languages and components["language"] >= 100:
+        reasons.append(f"Posting in {LANGUAGE_NAMES.get(job.language(), job.language())}")
     if components["recency"] >= 85:
         reasons.append("Recently posted")
     if missing:

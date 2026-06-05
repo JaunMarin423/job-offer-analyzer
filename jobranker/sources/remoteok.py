@@ -17,23 +17,31 @@ API_URL = "https://remoteok.com/api"
 USER_AGENT = "jobranker/0.1 (+https://github.com/JaunMarin423/job-offer-analyzer)"
 
 
-def _salary(item: dict) -> str:
-    lo, hi = item.get("salary_min"), item.get("salary_max")
-    if lo and hi:
-        return f"${lo} - ${hi}"
-    if lo:
-        return f"${lo}+"
-    return ""
+def _sane_salary(item: dict):
+    """Return (min, max) only when the values look like real annual figures.
+
+    RemoteOK frequently returns tiny placeholder numbers (e.g. 15, 27), so we
+    require a maximum of at least 1000 before trusting the salary.
+    """
+    lo, hi = item.get("salary_min") or 0, item.get("salary_max") or 0
+    if hi and hi >= 1000:
+        return float(lo) or None, float(hi)
+    return None, None
 
 
 def _to_job(item: dict) -> Job:
+    lo, hi = _sane_salary(item)
     return Job(
         title=item.get("position", "") or item.get("title", ""),
         company=item.get("company", ""),
         location=item.get("location", "") or "Remote",
         description=item.get("description", ""),
         url=item.get("url", "") or item.get("apply_url", ""),
-        salary=_salary(item),
+        salary="",
+        salary_min=lo,
+        salary_max=hi,
+        salary_currency="USD" if hi else "",
+        salary_period="yearly" if hi else "",
         job_type="",
         category="",
         tags=coerce_tags(item.get("tags")),

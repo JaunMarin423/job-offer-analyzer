@@ -6,6 +6,7 @@ import os
 import re
 from typing import List, Optional
 
+from .language import normalize_language_code
 from .models import CVProfile
 
 # Curated catalog of skills/technologies to detect in free-form CV text.
@@ -91,6 +92,7 @@ def build_profile(
     locations: Optional[List[str]] = None,
     seniority: Optional[str] = None,
     extra_skills: Optional[List[str]] = None,
+    languages: Optional[List[str]] = None,
 ) -> CVProfile:
     text = read_cv_text(cv_path_or_text)
     skills = extract_skills(text, extra_skills=extra_skills)
@@ -100,6 +102,7 @@ def build_profile(
         target_roles=[r.strip().lower() for r in (target_roles or []) if r.strip()],
         locations=[l.strip().lower() for l in (locations or []) if l.strip()],
         seniority=(seniority or _infer_seniority(text)),
+        languages=[normalize_language_code(x) for x in (languages or []) if x.strip()],
     )
 
 

@@ -15,6 +15,14 @@ from ..models import Job, coerce_tags
 API_URL = "https://jobicy.com/api/v2/remote-jobs"
 
 
+def _num(value):
+    try:
+        n = float(value)
+    except (TypeError, ValueError):
+        return None
+    return n or None
+
+
 def _to_job(item: dict) -> Job:
     industries = coerce_tags(item.get("jobIndustry"))
     job_types = coerce_tags(item.get("jobType"))
@@ -25,6 +33,10 @@ def _to_job(item: dict) -> Job:
         description=item.get("jobDescription", "") or item.get("jobExcerpt", ""),
         url=item.get("url", ""),
         salary="",
+        salary_min=_num(item.get("salaryMin")),
+        salary_max=_num(item.get("salaryMax")),
+        salary_currency=item.get("salaryCurrency", "") or "",
+        salary_period=item.get("salaryPeriod", "") or "",
         job_type=", ".join(job_types),
         category=", ".join(industries),
         tags=industries,

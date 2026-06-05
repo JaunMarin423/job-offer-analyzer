@@ -41,6 +41,11 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Override seniority (otherwise inferred from the CV).")
     p.add_argument("--skills", default="",
                    help="Extra comma-separated skills to add to those detected in the CV.")
+    p.add_argument("--language", default="",
+                   help="Preferred posting language(s), e.g. 'spanish' or 'es,en'. "
+                        "Boosts offers written in these languages.")
+    p.add_argument("--lang-only", action="store_true",
+                   help="Keep only offers detected in the preferred --language.")
 
     src = p.add_argument_group("job sources (all free, no API key)")
     src.add_argument("--remotive", action="store_true",
@@ -122,12 +127,24 @@ def main(argv=None) -> int:
         locations=_split(args.locations),
         seniority=args.seniority,
         extra_skills=_split(args.skills),
+        languages=_split(args.language),
     )
 
     jobs = gather_jobs(args)
     if not jobs:
         print("No jobs found from the selected sources.", file=sys.stderr)
         return 1
+
+    if args.lang_only and profile.languages:
+        before = len(jobs)
+        jobs = [j for j in jobs if j.language() in profile.languages]
+        print(f"Language filter ({', '.join(profile.languages)}): "
+              f"{len(jobs)}/{before} offers kept.", file=sys.stderr)
+        if not jobs:
+            print("No offers matched the language filter. Try without "
+                  "--lang-only or add geo (e.g. --jobicy --geo spain).",
+                  file=sys.stderr)
+            return 1
 
     scored = rank_jobs(profile, jobs, min_score=args.min_score)
 

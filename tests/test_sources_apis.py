@@ -39,8 +39,19 @@ def test_remoteok_to_job_salary_and_fields():
         "salary_min": 90000, "salary_max": 130000, "date": "2026-06-01",
     })
     assert j.title == "Node Dev"
-    assert j.salary == "$90000 - $130000"
+    assert j.salary_min == 90000 and j.salary_max == 130000
+    assert j.salary_currency == "USD"
+    assert j.salary_info().format_annual() == "USD 90k–130k/yr"
     assert j.tags == ["node", "react"] and j.source == "remoteok"
+
+
+def test_remoteok_ignores_placeholder_salary():
+    j = remoteok_job({
+        "id": "2", "position": "Dev", "company": "X", "url": "u",
+        "salary_min": 15, "salary_max": 27,
+    })
+    assert j.salary_min is None and j.salary_max is None
+    assert j.salary_info() is None
 
 
 def test_arbeitnow_to_job_epoch_and_jobtypes():

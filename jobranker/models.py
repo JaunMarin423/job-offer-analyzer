@@ -10,15 +10,34 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import List, Optional
 
+from .language import detect_language
+from .salary import SalaryInfo, parse_salary_string
+
 _TAG_HTML = re.compile(r"<[^>]+>")
 _WS = re.compile(r"\s+")
+
+
+def fix_mojibake(text: str) -> str:
+    """Repair UTF-8 text that was double-encoded as Latin-1 (e.g. 'Ã¡' -> 'á').
+
+    Some feeds (notably RemoteOK) store already-mangled strings. We only attempt
+    the round-trip when the tell-tale 'Ã'/'Â' sequences are present, and keep the
+    original if the repair fails.
+    """
+    if not text or ("Ã" not in text and "Â" not in text):
+        return text
+    try:
+        return text.encode("latin-1").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return text
 
 
 def strip_html(text: str) -> str:
     """Remove HTML tags/entities and collapse whitespace (descriptions are HTML)."""
     if not text:
         return ""
-    return _WS.sub(" ", html.unescape(_TAG_HTML.sub(" ", text))).strip()
+    cleaned = fix_mojibake(text)
+    return _WS.sub(" ", html.unescape(_TAG_HTML.sub(" ", cleaned))).strip()
 
 
 def coerce_tags(raw) -> List[str]:
@@ -58,11 +77,41 @@ class Job:
     description: str = ""
     url: str = ""
     salary: str = ""
+    salary_min: Optional[float] = None
+    salary_max: Optional[float] = None
+    salary_currency: str = ""
+    salary_period: str = ""
     job_type: str = ""
     category: str = ""
     tags: List[str] = field(default_factory=list)
     publication_date: str = ""
     source: str = ""
+
+    def __post_init__(self) -> None:
+        self.title = fix_mojibake(self.title)
+        self.company = fix_mojibake(self.company)
+        self.location = fix_mojibake(self.location)
+        self.category = fix_mojibake(self.category)
+        self.tags = [fix_mojibake(t) for t in self.tags]
+
+    def salary_info(self) -> Optional[SalaryInfo]:
+        """Structured salary if available, else parsed from the free-form string."""
+        if self.salary_min or self.salary_max:
+            return SalaryInfo(
+                min_amount=self.salary_min,
+                max_amount=self.salary_max,
+                currency=self.salary_currency or "USD",
+                period=self.salary_period or "yearly",
+            )
+        return parse_salary_string(self.salary)
+
+    def language(self) -> str:
+        """Detected language code ('es'/'en'/'other'), cached per instance."""
+        cached = self.__dict__.get("_language")
+        if cached is None:
+            cached = detect_language(self.title + " " + strip_html(self.description))
+            self.__dict__["_language"] = cached
+        return cached
 
     def searchable_text(self) -> str:
         """Lowercased blob used for keyword/skill matching."""
@@ -85,6 +134,7 @@ class CVProfile:
     target_roles: List[str] = field(default_factory=list)
     locations: List[str] = field(default_factory=list)
     seniority: Optional[str] = None  # e.g. "junior", "mid", "senior"
+    languages: List[str] = field(default_factory=list)  # preferred codes, e.g. ["es"]
 
     def normalized_skills(self) -> List[str]:
         seen = []

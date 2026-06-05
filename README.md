@@ -12,9 +12,11 @@ cuáles valen la pena. Este proyecto automatiza el **análisis y la priorizació
 de ofertas:
 
 - Detecta tus skills a partir del CV.
-- Puntúa cada oferta por encaje (skills, rol, ubicación, seniority, recencia).
+- Puntúa cada oferta por encaje (skills, rol, idioma, ubicación, seniority, recencia).
+- Detecta el **idioma** de cada oferta (ES/EN/PT) y puede priorizar o filtrar por el tuyo.
+- Normaliza el **salario** y muestra una comparación de precios por moneda.
 - Te dice **por qué** encaja cada oferta y **qué te falta** (posibles gaps).
-- Te entrega un ranking listo para revisar.
+- Te entrega un ranking listo para revisar, en Markdown o HTML.
 
 ### Por qué NO toca LinkedIn
 
@@ -104,7 +106,7 @@ ejecutarlo sin instalar con `python -m jobranker ...`).
 |---------|----------------|
 | `jobranker --cv <CV> ...` | Ejecuta el analizador y genera el ranking. |
 | `python -m jobranker ...` | Igual que arriba, sin instalar el script. |
-| `pytest -q` | Corre la suite de pruebas (16 tests). |
+| `pytest -q` | Corre la suite de pruebas (27 tests). |
 | `jobranker --help` | Muestra todas las opciones disponibles. |
 
 ### Opciones del CLI
@@ -116,6 +118,8 @@ ejecutarlo sin instalar con `python -m jobranker ...`).
 | `--locations` | Ubicaciones/modalidad preferidas, ej. `"remote,worldwide,colombia"`. |
 | `--seniority` | `junior` / `mid` / `senior` (si no, se infiere del CV). |
 | `--skills` | Skills extra a sumar a las detectadas en el CV. |
+| `--language` | Idioma(s) preferido(s), ej. `spanish` o `es,en`. **Prioriza** (sube en el ranking) las ofertas escritas en ese idioma. |
+| `--lang-only` | Filtra y deja **solo** las ofertas detectadas en el idioma de `--language`. |
 | `--remotive` | Trae ofertas en vivo de la API gratuita de Remotive. |
 | `--remoteok` | Trae ofertas en vivo de la API gratuita de RemoteOK. |
 | `--arbeitnow` | Trae ofertas en vivo de la API gratuita de Arbeitnow. |
@@ -152,16 +156,30 @@ jobranker --cv mi_cv.pdf \
 jobranker --cv examples/sample_cv.txt --file examples/sample_jobs.csv --top 10
 ```
 
-**3) Combinar TODAS las fuentes gratuitas → reporte HTML:**
+**3) Combinar TODAS las fuentes gratuitas, priorizando español → reporte HTML:**
 
 ```bash
 jobranker --cv mi_cv.md \
-  --roles "fullstack developer,backend developer,react developer" \
-  --locations "remote,worldwide,latam,colombia" --seniority senior \
+  --roles "fullstack developer,backend developer,react developer,desarrollador" \
+  --locations "remote,worldwide,latam,colombia,spain" --seniority senior \
+  --language spanish \
   --remotive --remoteok --arbeitnow --jobicy \
   --source-limit 100 --min-score 30 \
   --top 15 --format html -o ranking.html
 ```
+
+**4) Solo ofertas en español (filtro estricto):**
+
+```bash
+jobranker --cv mi_cv.md --language spanish --lang-only \
+  --remotive --remoteok --arbeitnow --jobicy \
+  --source-limit 100 --top 30 --format html -o ranking_es.html
+```
+
+> **Nota honesta sobre el idioma:** la mayoría de las APIs gratuitas de empleo
+> remoto publican en inglés; las ofertas 100 % en español son escasas en estas
+> fuentes. `--language spanish` (sin `--lang-only`) es lo recomendado: mantiene
+> las ofertas técnicas relevantes y sube las que están en español.
 
 ### Probar rápido con los datos de ejemplo
 
@@ -193,14 +211,31 @@ ranking sea explicable:
 
 | Componente | Peso | Qué mide |
 |------------|-----:|----------|
-| skills     | 50%  | coincidencia entre tus skills y la oferta |
-| role       | 25%  | título de la oferta vs. tus roles objetivo |
-| location   | 15%  | ubicación de la oferta vs. tus preferencias |
+| skills     | 45%  | coincidencia entre tus skills y la oferta |
+| role       | 20%  | título de la oferta vs. tus roles objetivo |
+| language   | 15%  | idioma de la oferta vs. tu preferencia (`--language`) |
+| location   | 10%  | ubicación de la oferta vs. tus preferencias |
 | seniority  | 5%   | alineación junior/senior |
 | recency    | 5%   | qué tan reciente es la publicación |
 
+> El componente `language` solo influye si pasas `--language`; sin esa opción es
+> neutral y no altera el orden. La detección distingue español, inglés y
+> portugués (para no confundir ofertas de Brasil con español).
+
 Cada oferta del ranking lista las skills coincidentes, los posibles gaps y el
 desglose por componente.
+
+## Idioma y comparación de precios
+
+- **Idioma:** cada oferta se etiqueta con su idioma detectado (ES/EN/PT). Con
+  `--language spanish` las ofertas en español suben en el ranking; con
+  `--lang-only` se filtran y solo quedan esas.
+- **Comparación de precios:** cuando la oferta publica salario (estructurado en
+  Jobicy/RemoteOK o como texto en Remotive, ej. `$109k - $228k`), se normaliza a
+  un rango anual por moneda. El reporte muestra una columna de salario, una
+  tarjeta «con salario» y una sección **Comparación de precios** (mín./mediana/
+  máx. por moneda). No se hace conversión de divisas, así que la comparación se
+  agrupa por moneda. *Muchas ofertas no publican salario.*
 
 ## Estructura del proyecto
 
@@ -211,6 +246,8 @@ job-offer-analyzer/
 │   ├── cv.py             # lectura de CV y extracción de skills
 │   ├── models.py         # modelos Job y CVProfile
 │   ├── scoring.py        # motor de puntaje/ranking
+│   ├── language.py       # detección de idioma (ES/EN/PT)
+│   ├── salary.py         # parseo y normalización de salarios
 │   ├── report.py         # render Markdown / HTML
 │   └── sources/          # fuentes (Remotive, RemoteOK, Arbeitnow, Jobicy, local)
 ├── examples/             # CV y ofertas de ejemplo
