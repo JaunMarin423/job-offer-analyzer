@@ -42,12 +42,18 @@ flowchart TD
         RO["API RemoteOK"]
         AN["API Arbeitnow"]
         JO["API Jobicy"]
+        TM["API The Muse"]
+        HI["API Himalayas"]
+        WWR["RSS We Work Remotely"]
         F["Archivo local<br/>CSV / JSON"]
     end
     R --> JOBS["Lista de Job normalizada<br/>+ dedupe (jobranker/models.py)"]
     RO --> JOBS
     AN --> JOBS
     JO --> JOBS
+    TM --> JOBS
+    HI --> JOBS
+    WWR --> JOBS
     F --> JOBS
 
     PROF --> SCORE["Motor de scoring<br/>(jobranker/scoring.py)"]
@@ -68,8 +74,13 @@ automáticamente.
 | [RemoteOK](https://remoteok.com) | `--remoteok` | Empleos remotos. Sus términos piden enlace *do-follow* de vuelta y crédito a "Remote OK". |
 | [Arbeitnow](https://www.arbeitnow.com) | `--arbeitnow` | Bolsa de empleo (API paginada). |
 | [Jobicy](https://jobicy.com) | `--jobicy` | Empleos remotos, con filtros `--search` y `--geo`. |
+| [The Muse](https://www.themuse.com) | `--themuse` | Empleos tech (categorías "Software Engineering" y "Computer and IT"). |
+| [Himalayas](https://himalayas.app) | `--himalayas` | Empleos remotos; muchas vacantes traen **salario anual** (alimenta la comparación de precios). |
+| [We Work Remotely](https://weworkremotely.com) | `--weworkremotely` | Feed RSS oficial de la categoría "Programming". |
 | Archivo local | `--file ruta.csv\|.json` | Ofertas que recolectas tú (incluida una copiada de LinkedIn a una fila). Sin scraping. |
 
+> Atajo: `--all-sources` activa todas las fuentes en vivo de una sola vez.
+>
 > Más adelante se pueden añadir proveedores con más cobertura (Adzuna, JSearch);
 > esos sí requieren una API key gratuita.
 
@@ -106,7 +117,7 @@ ejecutarlo sin instalar con `python -m jobranker ...`).
 |---------|----------------|
 | `jobranker --cv <CV> ...` | Ejecuta el analizador y genera el ranking. |
 | `python -m jobranker ...` | Igual que arriba, sin instalar el script. |
-| `pytest -q` | Corre la suite de pruebas (27 tests). |
+| `pytest -q` | Corre la suite de pruebas (31 tests). |
 | `jobranker --help` | Muestra todas las opciones disponibles. |
 
 ### Opciones del CLI
@@ -124,6 +135,10 @@ ejecutarlo sin instalar con `python -m jobranker ...`).
 | `--remoteok` | Trae ofertas en vivo de la API gratuita de RemoteOK. |
 | `--arbeitnow` | Trae ofertas en vivo de la API gratuita de Arbeitnow. |
 | `--jobicy` | Trae ofertas en vivo de la API gratuita de Jobicy. |
+| `--themuse` | Trae ofertas en vivo de la API gratuita de The Muse. |
+| `--himalayas` | Trae ofertas en vivo de la API gratuita de Himalayas. |
+| `--weworkremotely` | Trae ofertas del feed RSS de We Work Remotely. |
+| `--all-sources` | Activa **todas** las fuentes en vivo a la vez. |
 | `--search` | Búsqueda aplicada a **todas** las fuentes elegidas. |
 | `--category` | Slug de categoría de Remotive, ej. `software-dev`. |
 | `--geo` | Filtro geográfico de Jobicy, ej. `usa`, `latin-america`. |
@@ -135,8 +150,9 @@ ejecutarlo sin instalar con `python -m jobranker ...`).
 | `-o, --output PATH` | Escribe el reporte a un archivo. |
 
 > Debes elegir al menos una fuente: `--remotive`, `--remoteok`, `--arbeitnow`,
-> `--jobicy` y/o `--file PATH`. Las ofertas duplicadas (mismo título + empresa)
-> se eliminan automáticamente al combinar fuentes.
+> `--jobicy`, `--themuse`, `--himalayas`, `--weworkremotely` (o `--all-sources`)
+> y/o `--file PATH`. Las ofertas duplicadas (mismo título + empresa) se eliminan
+> automáticamente al combinar fuentes.
 
 ## Cómo ejecutar (ejemplos)
 
@@ -163,7 +179,7 @@ jobranker --cv mi_cv.md \
   --roles "fullstack developer,backend developer,react developer,desarrollador" \
   --locations "remote,worldwide,latam,colombia,spain" --seniority senior \
   --language spanish \
-  --remotive --remoteok --arbeitnow --jobicy \
+  --all-sources \
   --source-limit 100 --min-score 30 \
   --top 15 --format html -o ranking.html
 ```
@@ -249,7 +265,8 @@ job-offer-analyzer/
 │   ├── language.py       # detección de idioma (ES/EN/PT)
 │   ├── salary.py         # parseo y normalización de salarios
 │   ├── report.py         # render Markdown / HTML
-│   └── sources/          # fuentes (Remotive, RemoteOK, Arbeitnow, Jobicy, local)
+│   └── sources/          # Remotive, RemoteOK, Arbeitnow, Jobicy, The Muse,
+│                         #   Himalayas, We Work Remotely, local
 ├── examples/             # CV y ofertas de ejemplo
 ├── tests/                # pruebas con pytest
 └── pyproject.toml

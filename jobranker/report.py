@@ -15,6 +15,9 @@ _SOURCE_CREDITS = {
     "remoteok": "Remote OK (https://remoteok.com)",
     "arbeitnow": "Arbeitnow (https://www.arbeitnow.com)",
     "jobicy": "Jobicy (https://jobicy.com)",
+    "themuse": "The Muse (https://www.themuse.com)",
+    "himalayas": "Himalayas (https://himalayas.app)",
+    "weworkremotely": "We Work Remotely (https://weworkremotely.com)",
     "local": "your local file",
 }
 

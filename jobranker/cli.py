@@ -12,13 +12,19 @@ from .report import to_html, to_markdown
 from .scoring import rank_jobs
 from .sources import (
     fetch_arbeitnow,
+    fetch_himalayas,
     fetch_jobicy,
     fetch_remoteok,
     fetch_remotive,
+    fetch_themuse,
+    fetch_weworkremotely,
     load_local,
 )
 
-_SOURCE_FLAGS = ("remotive", "remoteok", "arbeitnow", "jobicy")
+_SOURCE_FLAGS = (
+    "remotive", "remoteok", "arbeitnow", "jobicy",
+    "themuse", "himalayas", "weworkremotely",
+)
 
 
 def _split(value: str) -> List[str]:
@@ -56,6 +62,14 @@ def build_parser() -> argparse.ArgumentParser:
                      help="Fetch live offers from the free Arbeitnow API.")
     src.add_argument("--jobicy", action="store_true",
                      help="Fetch live offers from the free Jobicy API.")
+    src.add_argument("--themuse", action="store_true",
+                     help="Fetch live offers from the free The Muse API.")
+    src.add_argument("--himalayas", action="store_true",
+                     help="Fetch live offers from the free Himalayas API.")
+    src.add_argument("--weworkremotely", action="store_true",
+                     help="Fetch live offers from the We Work Remotely RSS feed.")
+    src.add_argument("--all-sources", action="store_true",
+                     help="Enable every free live source at once.")
     src.add_argument("--search", default="",
                      help="Search query applied to every selected source.")
     src.add_argument("--category", default="",
@@ -109,11 +123,21 @@ def gather_jobs(args) -> List[Job]:
         jobs.extend(fetch_jobicy(
             search=search, geo=args.geo or None, limit=limit,
         ))
+    if args.themuse:
+        jobs.extend(fetch_themuse(search=search, limit=limit))
+    if args.himalayas:
+        jobs.extend(fetch_himalayas(search=search, limit=limit))
+    if args.weworkremotely:
+        jobs.extend(fetch_weworkremotely(search=search, limit=limit))
     return _dedupe(jobs)
 
 
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
+
+    if args.all_sources:
+        for flag in _SOURCE_FLAGS:
+            setattr(args, flag, True)
 
     any_live = any(getattr(args, flag) for flag in _SOURCE_FLAGS)
     if not args.file and not any_live:
