@@ -7,7 +7,9 @@ dist/
 .venv/
 venv/
 .env
-*.html
-ranking.md
-report.*
+# generated reports (root-level only; do NOT match jobranker/report.py)
+/*.html
+/ranking*.md
+/report.md
+/err.txt
 .pytest_cache/
