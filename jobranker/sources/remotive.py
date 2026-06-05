@@ -7,27 +7,13 @@ their listings to third parties.
 
 from __future__ import annotations
 
-import ast
 from typing import List, Optional
 
 import requests
 
-from ..models import Job
+from ..models import Job, coerce_tags
 
 API_URL = "https://remotive.com/api/remote-jobs"
-
-
-def _parse_tags(raw) -> List[str]:
-    if isinstance(raw, list):
-        return [str(t) for t in raw]
-    if isinstance(raw, str) and raw:
-        try:
-            val = ast.literal_eval(raw)
-            if isinstance(val, list):
-                return [str(t) for t in val]
-        except (ValueError, SyntaxError):
-            return [t.strip() for t in raw.split(",") if t.strip()]
-    return []
 
 
 def _to_job(item: dict) -> Job:
@@ -40,7 +26,7 @@ def _to_job(item: dict) -> Job:
         salary=item.get("salary", ""),
         job_type=item.get("job_type", ""),
         category=item.get("category", ""),
-        tags=_parse_tags(item.get("tags")),
+        tags=coerce_tags(item.get("tags")),
         publication_date=item.get("publication_date", ""),
         source="remotive",
     )

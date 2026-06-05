@@ -10,7 +10,15 @@ from .cv import build_profile
 from .models import Job
 from .report import to_html, to_markdown
 from .scoring import rank_jobs
-from .sources import fetch_remotive, load_local
+from .sources import (
+    fetch_arbeitnow,
+    fetch_jobicy,
+    fetch_remoteok,
+    fetch_remotive,
+    load_local,
+)
+
+_SOURCE_FLAGS = ("remotive", "remoteok", "arbeitnow", "jobicy")
 
 
 def _split(value: str) -> List[str]:
@@ -34,15 +42,23 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--skills", default="",
                    help="Extra comma-separated skills to add to those detected in the CV.")
 
-    src = p.add_argument_group("job sources")
+    src = p.add_argument_group("job sources (all free, no API key)")
     src.add_argument("--remotive", action="store_true",
                      help="Fetch live offers from the free Remotive API.")
+    src.add_argument("--remoteok", action="store_true",
+                     help="Fetch live offers from the free RemoteOK API.")
+    src.add_argument("--arbeitnow", action="store_true",
+                     help="Fetch live offers from the free Arbeitnow API.")
+    src.add_argument("--jobicy", action="store_true",
+                     help="Fetch live offers from the free Jobicy API.")
     src.add_argument("--search", default="",
-                     help="Search query for Remotive (e.g. 'python backend').")
+                     help="Search query applied to every selected source.")
     src.add_argument("--category", default="",
                      help="Remotive category slug (e.g. 'software-dev').")
-    src.add_argument("--remotive-limit", type=int, default=50,
-                     help="Max offers to pull from Remotive (default 50).")
+    src.add_argument("--geo", default="",
+                     help="Jobicy geo filter (e.g. 'usa', 'latin-america').")
+    src.add_argument("--source-limit", type=int, default=100,
+                     help="Max offers to pull from each live source (default 100).")
     src.add_argument("--file", action="append", default=[],
                      metavar="PATH",
                      help="Load offers from a local CSV/JSON file (repeatable).")
@@ -57,25 +73,47 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _dedupe(jobs: List[Job]) -> List[Job]:
+    """Drop duplicate postings (same title+company) across sources."""
+    seen = set()
+    unique: List[Job] = []
+    for j in jobs:
+        key = (j.title.strip().lower(), j.company.strip().lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(j)
+    return unique
+
+
 def gather_jobs(args) -> List[Job]:
     jobs: List[Job] = []
+    search = args.search or None
+    limit = args.source_limit
     for path in args.file:
         jobs.extend(load_local(path))
     if args.remotive:
         jobs.extend(fetch_remotive(
-            search=args.search or None,
-            category=args.category or None,
-            limit=args.remotive_limit,
+            search=search, category=args.category or None, limit=limit,
         ))
-    return jobs
+    if args.remoteok:
+        jobs.extend(fetch_remoteok(search=search, limit=limit))
+    if args.arbeitnow:
+        jobs.extend(fetch_arbeitnow(search=search, limit=limit))
+    if args.jobicy:
+        jobs.extend(fetch_jobicy(
+            search=search, geo=args.geo or None, limit=limit,
+        ))
+    return _dedupe(jobs)
 
 
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
 
-    if not args.file and not args.remotive:
-        print("error: choose at least one source (--remotive and/or --file PATH)",
-              file=sys.stderr)
+    any_live = any(getattr(args, flag) for flag in _SOURCE_FLAGS)
+    if not args.file and not any_live:
+        print("error: choose at least one source (e.g. --remotive, --remoteok, "
+              "--arbeitnow, --jobicy, and/or --file PATH)", file=sys.stderr)
         return 2
 
     profile = build_profile(

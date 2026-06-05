@@ -1,7 +1,7 @@
 # jobranker — analizador y rankeador de ofertas de empleo
 
-`jobranker` lee **tu CV**, trae ofertas de empleo desde una fuente legal y las
-**puntúa y ordena (0–100)** según qué tan bien encajan con tu perfil y tus
+`jobranker` lee **tu CV**, trae ofertas de empleo desde **fuentes legales y
+gratuitas (sin API key)** y las **puntúa y ordena (0–100)** según qué tan bien encajan con tu perfil y tus
 objetivos de carrera. Genera un ranking explicado (Markdown o HTML) para que
 **tú** decidas a cuáles aplicar.
 
@@ -35,11 +35,17 @@ flowchart TD
     PREF["Preferencias<br/>roles, ubicación, seniority"] --> P
     P --> PROF["CVProfile<br/>(skills + objetivos)"]
 
-    subgraph fuentes["Fuentes de ofertas (legales)"]
-        R["API Remotive<br/>(sin API key)"]
+    subgraph fuentes["Fuentes de ofertas (legales, sin API key)"]
+        R["API Remotive"]
+        RO["API RemoteOK"]
+        AN["API Arbeitnow"]
+        JO["API Jobicy"]
         F["Archivo local<br/>CSV / JSON"]
     end
-    R --> JOBS["Lista de Job normalizada<br/>(jobranker/models.py)"]
+    R --> JOBS["Lista de Job normalizada<br/>+ dedupe (jobranker/models.py)"]
+    RO --> JOBS
+    AN --> JOBS
+    JO --> JOBS
     F --> JOBS
 
     PROF --> SCORE["Motor de scoring<br/>(jobranker/scoring.py)"]
@@ -48,12 +54,29 @@ flowchart TD
     RANK --> OUT["Reporte<br/>Markdown / HTML<br/>(jobranker/report.py)"]
 ```
 
+## Fuentes de ofertas
+
+Todas las fuentes en vivo son **gratuitas y sin API key**. Puedes combinar
+varias en una sola corrida; las duplicadas (mismo título + empresa) se eliminan
+automáticamente.
+
+| Fuente | Flag | Notas |
+|--------|------|-------|
+| [Remotive](https://remotive.com) | `--remotive` | Empleos remotos. Enlazamos a la URL original y damos crédito según sus términos. |
+| [RemoteOK](https://remoteok.com) | `--remoteok` | Empleos remotos. Sus términos piden enlace *do-follow* de vuelta y crédito a "Remote OK". |
+| [Arbeitnow](https://www.arbeitnow.com) | `--arbeitnow` | Bolsa de empleo (API paginada). |
+| [Jobicy](https://jobicy.com) | `--jobicy` | Empleos remotos, con filtros `--search` y `--geo`. |
+| Archivo local | `--file ruta.csv\|.json` | Ofertas que recolectas tú (incluida una copiada de LinkedIn a una fila). Sin scraping. |
+
+> Más adelante se pueden añadir proveedores con más cobertura (Adzuna, JSearch);
+> esos sí requieren una API key gratuita.
+
 ## Requisitos
 
 - **Python 3.9+** (probado en 3.12).
 - `pip`.
-- Conexión a internet **solo** si usas la fuente en vivo de Remotive
-  (`--remotive`). Con archivos locales funciona offline.
+- Conexión a internet **solo** si usas fuentes en vivo (`--remotive`,
+  `--remoteok`, `--arbeitnow`, `--jobicy`). Con archivos locales funciona offline.
 - Dependencia principal: `requests`. Opcionales: `pypdf` (CV en PDF) y
   `pytest` (tests).
 
@@ -81,7 +104,7 @@ ejecutarlo sin instalar con `python -m jobranker ...`).
 |---------|----------------|
 | `jobranker --cv <CV> ...` | Ejecuta el analizador y genera el ranking. |
 | `python -m jobranker ...` | Igual que arriba, sin instalar el script. |
-| `pytest -q` | Corre la suite de pruebas (8 tests). |
+| `pytest -q` | Corre la suite de pruebas (16 tests). |
 | `jobranker --help` | Muestra todas las opciones disponibles. |
 
 ### Opciones del CLI
@@ -94,16 +117,22 @@ ejecutarlo sin instalar con `python -m jobranker ...`).
 | `--seniority` | `junior` / `mid` / `senior` (si no, se infiere del CV). |
 | `--skills` | Skills extra a sumar a las detectadas en el CV. |
 | `--remotive` | Trae ofertas en vivo de la API gratuita de Remotive. |
-| `--search` | Búsqueda para Remotive, ej. `"python backend"`. |
+| `--remoteok` | Trae ofertas en vivo de la API gratuita de RemoteOK. |
+| `--arbeitnow` | Trae ofertas en vivo de la API gratuita de Arbeitnow. |
+| `--jobicy` | Trae ofertas en vivo de la API gratuita de Jobicy. |
+| `--search` | Búsqueda aplicada a **todas** las fuentes elegidas. |
 | `--category` | Slug de categoría de Remotive, ej. `software-dev`. |
-| `--remotive-limit` | Máximo de ofertas a traer de Remotive (def. 50). |
+| `--geo` | Filtro geográfico de Jobicy, ej. `usa`, `latin-america`. |
+| `--source-limit` | Máximo de ofertas por cada fuente en vivo (def. 100). |
 | `--file PATH` | Carga ofertas de un CSV/JSON local (se puede repetir). |
 | `--top N` | Muestra solo las N mejores (0 = todas). Def. 20. |
 | `--min-score` | Descarta ofertas por debajo de este puntaje (0–100). |
 | `--format` | `markdown` (def.) o `html`. |
 | `-o, --output PATH` | Escribe el reporte a un archivo. |
 
-> Debes elegir al menos una fuente: `--remotive` y/o `--file PATH`.
+> Debes elegir al menos una fuente: `--remotive`, `--remoteok`, `--arbeitnow`,
+> `--jobicy` y/o `--file PATH`. Las ofertas duplicadas (mismo título + empresa)
+> se eliminan automáticamente al combinar fuentes.
 
 ## Cómo ejecutar (ejemplos)
 
@@ -113,7 +142,7 @@ ejecutarlo sin instalar con `python -m jobranker ...`).
 jobranker --cv mi_cv.pdf \
   --roles "backend developer,python developer" \
   --locations "remote,worldwide,colombia" \
-  --remotive --search "python backend" --remotive-limit 50 \
+  --remotive --search "python backend" --source-limit 50 \
   --top 15 -o ranking.md
 ```
 
@@ -123,11 +152,15 @@ jobranker --cv mi_cv.pdf \
 jobranker --cv examples/sample_cv.txt --file examples/sample_jobs.csv --top 10
 ```
 
-**3) Combinar ambas fuentes → reporte HTML:**
+**3) Combinar TODAS las fuentes gratuitas → reporte HTML:**
 
 ```bash
-jobranker --cv mi_cv.txt --remotive --search "data analyst" \
-  --file extra_ofertas.csv --format html -o ranking.html
+jobranker --cv mi_cv.md \
+  --roles "fullstack developer,backend developer,react developer" \
+  --locations "remote,worldwide,latam,colombia" --seniority senior \
+  --remotive --remoteok --arbeitnow --jobicy \
+  --source-limit 100 --min-score 30 \
+  --top 15 --format html -o ranking.html
 ```
 
 ### Probar rápido con los datos de ejemplo
@@ -179,7 +212,7 @@ job-offer-analyzer/
 │   ├── models.py         # modelos Job y CVProfile
 │   ├── scoring.py        # motor de puntaje/ranking
 │   ├── report.py         # render Markdown / HTML
-│   └── sources/          # fuentes de ofertas (Remotive, archivo local)
+│   └── sources/          # fuentes (Remotive, RemoteOK, Arbeitnow, Jobicy, local)
 ├── examples/             # CV y ofertas de ejemplo
 ├── tests/                # pruebas con pytest
 └── pyproject.toml

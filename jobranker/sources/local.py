@@ -16,7 +16,7 @@ import json
 import os
 from typing import List
 
-from ..models import Job
+from ..models import Job, coerce_tags
 
 _FIELDS = {
     "title", "company", "location", "description", "url", "salary",
@@ -24,25 +24,9 @@ _FIELDS = {
 }
 
 
-def _coerce_tags(raw) -> List[str]:
-    if isinstance(raw, list):
-        return [str(t).strip() for t in raw if str(t).strip()]
-    if isinstance(raw, str) and raw.strip():
-        s = raw.strip()
-        if s.startswith("["):
-            try:
-                val = json.loads(s)
-                if isinstance(val, list):
-                    return [str(t).strip() for t in val]
-            except json.JSONDecodeError:
-                pass
-        return [t.strip() for t in s.split(",") if t.strip()]
-    return []
-
-
 def _row_to_job(row: dict) -> Job:
     data = {k: row.get(k, "") for k in _FIELDS if k != "tags"}
-    data["tags"] = _coerce_tags(row.get("tags"))
+    data["tags"] = coerce_tags(row.get("tags"))
     if not data.get("source"):
         data["source"] = "local"
     return Job(**data)

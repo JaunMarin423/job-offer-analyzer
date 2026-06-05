@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import ast
+import html
+import json
 import re
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import List, Optional
 
 _TAG_HTML = re.compile(r"<[^>]+>")
@@ -11,10 +15,37 @@ _WS = re.compile(r"\s+")
 
 
 def strip_html(text: str) -> str:
-    """Remove HTML tags and collapse whitespace (Remotive descriptions are HTML)."""
+    """Remove HTML tags/entities and collapse whitespace (descriptions are HTML)."""
     if not text:
         return ""
-    return _WS.sub(" ", _TAG_HTML.sub(" ", text)).strip()
+    return _WS.sub(" ", html.unescape(_TAG_HTML.sub(" ", text))).strip()
+
+
+def coerce_tags(raw) -> List[str]:
+    """Normalize tags from a list, JSON list, Python-repr list, or CSV string."""
+    if isinstance(raw, list):
+        return [str(t).strip() for t in raw if str(t).strip()]
+    if isinstance(raw, str) and raw.strip():
+        s = html.unescape(raw.strip())
+        if s.startswith("["):
+            for parser in (json.loads, ast.literal_eval):
+                try:
+                    val = parser(s)
+                    if isinstance(val, list):
+                        return [str(t).strip() for t in val if str(t).strip()]
+                except (ValueError, SyntaxError):
+                    continue
+        return [t.strip() for t in s.split(",") if t.strip()]
+    return []
+
+
+def epoch_to_iso(value) -> str:
+    """Convert a unix-epoch (int or numeric string) to an ISO-8601 UTC string."""
+    try:
+        ts = int(float(value))
+    except (TypeError, ValueError):
+        return ""
+    return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
 
 
 @dataclass
