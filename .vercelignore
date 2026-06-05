@@ -1,0 +1,4 @@
+# .vercelignore
+pyproject.toml
+poetry.lock
+# (Opcional: solo si usas otros gestores de paquetes que interfieren)
