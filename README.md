@@ -117,7 +117,7 @@ ejecutarlo sin instalar con `python -m jobranker ...`).
 |---------|----------------|
 | `jobranker --cv <CV> ...` | Ejecuta el analizador y genera el ranking. |
 | `python -m jobranker ...` | Igual que arriba, sin instalar el script. |
-| `pytest -q` | Corre la suite de pruebas (31 tests). |
+| `pytest -q` | Corre la suite de pruebas (37 tests). |
 | `jobranker --help` | Muestra todas las opciones disponibles. |
 
 ### Opciones del CLI
@@ -131,6 +131,7 @@ ejecutarlo sin instalar con `python -m jobranker ...`).
 | `--skills` | Skills extra a sumar a las detectadas en el CV. |
 | `--language` | Idioma(s) preferido(s), ej. `spanish` o `es,en`. **Prioriza** (sube en el ranking) las ofertas escritas en ese idioma. |
 | `--lang-only` | Filtra y deja **solo** las ofertas detectadas en el idioma de `--language`. |
+| `--country` | Deja **solo** ofertas en ese país/región **o** remotas globales, ej. `colombia`. También apunta al feed LATAM de Jobicy. |
 | `--remotive` | Trae ofertas en vivo de la API gratuita de Remotive. |
 | `--remoteok` | Trae ofertas en vivo de la API gratuita de RemoteOK. |
 | `--arbeitnow` | Trae ofertas en vivo de la API gratuita de Arbeitnow. |
@@ -184,7 +185,21 @@ jobranker --cv mi_cv.md \
   --top 15 --format html -o ranking.html
 ```
 
-**4) Solo ofertas en español (filtro estricto):**
+**4) Enfocar en un país (Colombia) — incluye remotas globales y LATAM:**
+
+```bash
+jobranker --cv mi_cv.md --all-sources \
+  --roles "fullstack developer,backend developer,react developer" \
+  --country colombia --language spanish \
+  --source-limit 100 --top 20 --format html -o ranking_colombia.html
+```
+
+> `--country colombia` conserva ofertas ubicadas en Colombia (Bogotá, Medellín…),
+> en regiones que la incluyen (LATAM, Latinoamérica, Americas) y las **remotas
+> globales** (worldwide/anywhere) que puedes tomar desde Colombia; descarta las
+> ancladas a otra sede presencial (p. ej. "United States", "Berlin").
+
+**5) Solo ofertas en español (filtro estricto):**
 
 ```bash
 jobranker --cv mi_cv.md --language spanish --lang-only \
@@ -264,6 +279,7 @@ job-offer-analyzer/
 │   ├── scoring.py        # motor de puntaje/ranking
 │   ├── language.py       # detección de idioma (ES/EN/PT)
 │   ├── salary.py         # parseo y normalización de salarios
+│   ├── geo.py            # filtro por país/región (--country)
 │   ├── report.py         # render Markdown / HTML
 │   └── sources/          # Remotive, RemoteOK, Arbeitnow, Jobicy, The Muse,
 │                         #   Himalayas, We Work Remotely, local

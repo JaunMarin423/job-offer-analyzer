@@ -7,6 +7,7 @@ import sys
 from typing import List
 
 from .cv import build_profile
+from .geo import location_matches_country, normalize_country
 from .models import Job
 from .report import to_html, to_markdown
 from .scoring import rank_jobs
@@ -25,6 +26,8 @@ _SOURCE_FLAGS = (
     "remotive", "remoteok", "arbeitnow", "jobicy",
     "themuse", "himalayas", "weworkremotely",
 )
+
+_LATAM_COUNTRIES = {"colombia", "mexico", "argentina"}
 
 
 def _split(value: str) -> List[str]:
@@ -52,6 +55,9 @@ def build_parser() -> argparse.ArgumentParser:
                         "Boosts offers written in these languages.")
     p.add_argument("--lang-only", action="store_true",
                    help="Keep only offers detected in the preferred --language.")
+    p.add_argument("--country", default="",
+                   help="Keep only offers in this country/region or globally "
+                        "remote, e.g. 'colombia'. Also targets Jobicy's LATAM feed.")
 
     src = p.add_argument_group("job sources (all free, no API key)")
     src.add_argument("--remotive", action="store_true",
@@ -120,8 +126,11 @@ def gather_jobs(args) -> List[Job]:
     if args.arbeitnow:
         jobs.extend(fetch_arbeitnow(search=search, limit=limit))
     if args.jobicy:
+        geo = args.geo or None
+        if not geo and normalize_country(args.country) in _LATAM_COUNTRIES:
+            geo = "latam"
         jobs.extend(fetch_jobicy(
-            search=search, geo=args.geo or None, limit=limit,
+            search=search, geo=geo, limit=limit,
         ))
     if args.themuse:
         jobs.extend(fetch_themuse(search=search, limit=limit))
@@ -158,6 +167,17 @@ def main(argv=None) -> int:
     if not jobs:
         print("No jobs found from the selected sources.", file=sys.stderr)
         return 1
+
+    if args.country:
+        before = len(jobs)
+        jobs = [j for j in jobs
+                if location_matches_country(j.location, args.country)]
+        print(f"Country filter ({args.country}): {len(jobs)}/{before} offers "
+              f"kept (in-country + globally remote).", file=sys.stderr)
+        if not jobs:
+            print("No offers matched the country filter. Try without --country "
+                  "or add more sources (e.g. --all-sources).", file=sys.stderr)
+            return 1
 
     if args.lang_only and profile.languages:
         before = len(jobs)
