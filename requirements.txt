@@ -1,3 +1,7 @@
+# Instalamos el paquete actual en modo editable
+-e .
+
+# Tus otras dependencias
 fastapi>=0.110
 requests>=2.28
 python-multipart>=0.0.9
