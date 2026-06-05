@@ -1,0 +1,6 @@
+title,company,location,description,url,salary,job_type,category,tags,publication_date
+Senior Python Backend Engineer,Globex,Worldwide,"We need a backend engineer with strong Python, FastAPI, PostgreSQL and AWS experience to build microservices. Docker and CI/CD required.",https://example.com/jobs/1,$90k - $130k,full_time,Software Development,"Python, FastAPI, PostgreSQL, AWS, Docker",2026-06-03T10:00:00
+Frontend React Developer,Initech,Remote (US),"Build modern UIs with React, Redux and TypeScript. CSS and HTML expertise needed.",https://example.com/jobs/2,$80k - $110k,full_time,Software Development,"React, Redux, TypeScript, CSS",2026-06-01T10:00:00
+Data Analyst,Umbrella,Worldwide,"Analyze data using SQL, Python and pandas. Build dashboards in Power BI and Tableau.",https://example.com/jobs/3,$60k - $85k,full_time,Data Analysis,"SQL, Python, pandas, Power BI, Tableau",2026-05-20T10:00:00
+Django Backend Developer,Hooli,Remote (LATAM),"Maintain Django REST APIs backed by PostgreSQL. Docker and AWS a plus.",https://example.com/jobs/4,$50k - $75k,full_time,Software Development,"Django, PostgreSQL, Docker, AWS, REST API",2026-06-04T10:00:00
+Marketing Manager,Soylent,New York,"Lead marketing campaigns, SEO and content strategy.",https://example.com/jobs/5,$70k - $95k,full_time,Marketing,"SEO, marketing, content",2026-04-15T10:00:00

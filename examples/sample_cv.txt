@@ -1,0 +1,26 @@
+Jane Doe
+Backend Developer
+
+Summary
+Backend developer with 4 years of experience building REST APIs and data
+services. Comfortable across the stack and focused on reliable, well-tested
+systems.
+
+Skills
+- Languages: Python, SQL, JavaScript
+- Frameworks: Django, FastAPI, Flask
+- Data: PostgreSQL, Redis, pandas
+- Cloud/DevOps: AWS, Docker, Kubernetes, CI/CD, GitHub Actions
+- Tools: Git, Jira, Agile, unit testing
+
+Experience
+Backend Developer, Acme Corp (2021 - present)
+- Built and maintained microservices in Python (FastAPI) on AWS.
+- Designed PostgreSQL schemas and optimized queries.
+- Set up CI/CD pipelines with GitHub Actions and Docker.
+
+Junior Developer, Startup Inc (2020 - 2021)
+- Developed Django web applications and REST APIs.
+
+Education
+B.S. in Computer Science
