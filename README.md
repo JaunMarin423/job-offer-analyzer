@@ -1,96 +1,189 @@
-# jobranker — job-offer analyzer & ranker
+# jobranker — analizador y rankeador de ofertas de empleo
 
-Analyze job offers and rank them by how well they fit **your CV and career
-goals**. It reads your CV, pulls offers from a legal source, scores each one,
-and produces an explained ranking (Markdown or HTML) so you can decide where to
-apply.
+`jobranker` lee **tu CV**, trae ofertas de empleo desde una fuente legal y las
+**puntúa y ordena (0–100)** según qué tan bien encajan con tu perfil y tus
+objetivos de carrera. Genera un ranking explicado (Markdown o HTML) para que
+**tú** decidas a cuáles aplicar.
 
-## Why it does NOT touch LinkedIn
+## Finalidad del proyecto
 
-Automating LinkedIn (scraping listings, auto-applying, sending messages with a
-bot) **violates LinkedIn's Terms of Service** and can get your account
-permanently banned. Auto-submitted applications also tend to be low quality.
+Buscar trabajo manualmente es lento: hay que leer decenas de ofertas y adivinar
+cuáles valen la pena. Este proyecto automatiza el **análisis y la priorización**
+de ofertas:
 
-`jobranker` is deliberately **read-only and human-in-the-loop**:
+- Detecta tus skills a partir del CV.
+- Puntúa cada oferta por encaje (skills, rol, ubicación, seniority, recencia).
+- Te dice **por qué** encaja cada oferta y **qué te falta** (posibles gaps).
+- Te entrega un ranking listo para revisar.
 
-- It never logs into LinkedIn or any account.
-- It never auto-applies or sends your CV anywhere.
-- It ingests offers from **legal sources** and only ranks them for you. **You**
-  decide where to apply and click "apply" yourself.
+### Por qué NO toca LinkedIn
 
-## Job sources
+Automatizar LinkedIn (scrapear ofertas, auto-aplicar, enviar mensajes con bot)
+**viola los Términos de Servicio de LinkedIn** y puede llevar al **baneo
+permanente** de tu cuenta. Por eso `jobranker` es deliberadamente **de solo
+lectura y con humano en el control**:
 
-1. **Remotive API** (`--remotive`): free, key-less public API of remote jobs.
-   We link back to the original Remotive URL and credit Remotive as required by
-   their API terms.
-2. **Local file** (`--file path.csv` / `.json`): analyze offers you collected
-   yourself — including a posting you copied from LinkedIn into a row. No
-   scraping involved.
+- Nunca inicia sesión en LinkedIn ni en ninguna cuenta.
+- Nunca aplica ni envía tu CV automáticamente.
+- Solo **rankea** ofertas de fuentes legales; **tú** das el clic de aplicar.
 
-The architecture makes it easy to add more providers later (e.g. Adzuna,
-JSearch) — those require a free API key.
+## Diagrama de flujo
 
-## Install
+```mermaid
+flowchart TD
+    CV["Tu CV (.txt / .md / .pdf)"] --> P["Parser de CV<br/>(jobranker/cv.py)"]
+    PREF["Preferencias<br/>roles, ubicación, seniority"] --> P
+    P --> PROF["CVProfile<br/>(skills + objetivos)"]
+
+    subgraph fuentes["Fuentes de ofertas (legales)"]
+        R["API Remotive<br/>(sin API key)"]
+        F["Archivo local<br/>CSV / JSON"]
+    end
+    R --> JOBS["Lista de Job normalizada<br/>(jobranker/models.py)"]
+    F --> JOBS
+
+    PROF --> SCORE["Motor de scoring<br/>(jobranker/scoring.py)"]
+    JOBS --> SCORE
+    SCORE --> RANK["Ranking ordenado<br/>+ skills, gaps, razones"]
+    RANK --> OUT["Reporte<br/>Markdown / HTML<br/>(jobranker/report.py)"]
+```
+
+## Requisitos
+
+- **Python 3.9+** (probado en 3.12).
+- `pip`.
+- Conexión a internet **solo** si usas la fuente en vivo de Remotive
+  (`--remotive`). Con archivos locales funciona offline.
+- Dependencia principal: `requests`. Opcionales: `pypdf` (CV en PDF) y
+  `pytest` (tests).
+
+## Instalación local
 
 ```bash
+git clone https://github.com/JaunMarin423/job-offer-analyzer.git
 cd job-offer-analyzer
-pip install -e .            # core
-pip install -e ".[pdf]"     # add PDF CV support (pypdf)
-pip install -e ".[dev]"     # add pytest
+
+# (recomendado) entorno virtual
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+
+# instala el paquete en modo editable
+pip install -e .            # núcleo
+pip install -e ".[pdf]"     # + soporte de CV en PDF (pypdf)
+pip install -e ".[dev]"     # + pytest para correr los tests
 ```
 
-## Usage
+Tras instalar, queda disponible el comando `jobranker`. (También puedes
+ejecutarlo sin instalar con `python -m jobranker ...`).
 
-Rank live remote Python backend jobs against your CV:
+## Comandos / scripts disponibles
+
+| Comando | Para qué sirve |
+|---------|----------------|
+| `jobranker --cv <CV> ...` | Ejecuta el analizador y genera el ranking. |
+| `python -m jobranker ...` | Igual que arriba, sin instalar el script. |
+| `pytest -q` | Corre la suite de pruebas (8 tests). |
+| `jobranker --help` | Muestra todas las opciones disponibles. |
+
+### Opciones del CLI
+
+| Opción | Descripción |
+|--------|-------------|
+| `--cv PATH\|TEXT` | **(requerido)** Ruta a tu CV (.txt/.md/.pdf) o el texto del CV. |
+| `--roles` | Roles objetivo separados por coma, ej. `"backend developer,data analyst"`. |
+| `--locations` | Ubicaciones/modalidad preferidas, ej. `"remote,worldwide,colombia"`. |
+| `--seniority` | `junior` / `mid` / `senior` (si no, se infiere del CV). |
+| `--skills` | Skills extra a sumar a las detectadas en el CV. |
+| `--remotive` | Trae ofertas en vivo de la API gratuita de Remotive. |
+| `--search` | Búsqueda para Remotive, ej. `"python backend"`. |
+| `--category` | Slug de categoría de Remotive, ej. `software-dev`. |
+| `--remotive-limit` | Máximo de ofertas a traer de Remotive (def. 50). |
+| `--file PATH` | Carga ofertas de un CSV/JSON local (se puede repetir). |
+| `--top N` | Muestra solo las N mejores (0 = todas). Def. 20. |
+| `--min-score` | Descarta ofertas por debajo de este puntaje (0–100). |
+| `--format` | `markdown` (def.) o `html`. |
+| `-o, --output PATH` | Escribe el reporte a un archivo. |
+
+> Debes elegir al menos una fuente: `--remotive` y/o `--file PATH`.
+
+## Cómo ejecutar (ejemplos)
+
+**1) Ofertas en vivo (Remotive) contra tu CV → Markdown:**
 
 ```bash
-jobranker --cv path/to/your_cv.pdf \
-          --roles "backend developer,python developer" \
-          --locations "remote,worldwide,colombia" \
-          --remotive --search "python backend" --remotive-limit 50 \
-          --top 15 --format markdown -o ranking.md
+jobranker --cv mi_cv.pdf \
+  --roles "backend developer,python developer" \
+  --locations "remote,worldwide,colombia" \
+  --remotive --search "python backend" --remotive-limit 50 \
+  --top 15 -o ranking.md
 ```
 
-Analyze offers from a CSV you built:
+**2) Ofertas de un CSV propio (offline) → consola:**
 
 ```bash
 jobranker --cv examples/sample_cv.txt --file examples/sample_jobs.csv --top 10
 ```
 
-Combine both sources and export HTML:
+**3) Combinar ambas fuentes → reporte HTML:**
 
 ```bash
-jobranker --cv my_cv.txt --remotive --search "data analyst" \
-          --file extra_jobs.csv --format html -o ranking.html
+jobranker --cv mi_cv.txt --remotive --search "data analyst" \
+  --file extra_ofertas.csv --format html -o ranking.html
 ```
 
-### Local file format
+### Probar rápido con los datos de ejemplo
 
-CSV header or JSON keys (only `title` is required):
+El repo incluye `examples/sample_cv.txt` y `examples/sample_jobs.csv`:
+
+```bash
+jobranker --cv examples/sample_cv.txt \
+  --roles "backend developer" --locations "worldwide,remote" \
+  --file examples/sample_jobs.csv --top 5
+```
+
+### Formato del archivo local
+
+Cabecera CSV o claves JSON (solo `title` es obligatorio):
 
 ```
 title, company, location, description, url, salary, job_type, category,
 tags, publication_date
 ```
 
-`tags` can be a comma-separated string or a JSON list. See
-[`examples/sample_jobs.csv`](examples/sample_jobs.csv).
+`tags` puede ser una cadena separada por comas o una lista JSON. Ver
+[`examples/sample_jobs.csv`](examples/sample_jobs.csv). Así puedes analizar una
+oferta que copiaste de LinkedIn pegándola como una fila, sin scraping.
 
-## How the score works
+## Cómo funciona el puntaje
 
-The 0–100 score is a transparent weighted blend so every ranking is
-explainable:
+El puntaje 0–100 es una mezcla ponderada y **transparente**, para que cada
+ranking sea explicable:
 
-| Component  | Weight | What it measures |
-|------------|-------:|------------------|
-| skills     | 50%    | overlap between your CV skills and the offer |
-| role       | 25%    | offer title vs. your target roles |
-| location   | 15%    | offer location vs. your preferences |
-| seniority  | 5%     | junior/senior alignment |
-| recency    | 5%     | how recently the offer was posted |
+| Componente | Peso | Qué mide |
+|------------|-----:|----------|
+| skills     | 50%  | coincidencia entre tus skills y la oferta |
+| role       | 25%  | título de la oferta vs. tus roles objetivo |
+| location   | 15%  | ubicación de la oferta vs. tus preferencias |
+| seniority  | 5%   | alineación junior/senior |
+| recency    | 5%   | qué tan reciente es la publicación |
 
-Each ranked offer lists matched skills, possible gaps, and a per-component
-breakdown.
+Cada oferta del ranking lista las skills coincidentes, los posibles gaps y el
+desglose por componente.
+
+## Estructura del proyecto
+
+```
+job-offer-analyzer/
+├── jobranker/
+│   ├── cli.py            # interfaz de línea de comandos
+│   ├── cv.py             # lectura de CV y extracción de skills
+│   ├── models.py         # modelos Job y CVProfile
+│   ├── scoring.py        # motor de puntaje/ranking
+│   ├── report.py         # render Markdown / HTML
+│   └── sources/          # fuentes de ofertas (Remotive, archivo local)
+├── examples/             # CV y ofertas de ejemplo
+├── tests/                # pruebas con pytest
+└── pyproject.toml
+```
 
 ## Tests
 
@@ -100,5 +193,5 @@ pytest -q
 
 ## Roadmap
 
-- Additional legal providers (Adzuna, JSearch, Jooble) behind API keys.
-- Optional CV/cover-letter tailoring per offer (still human-reviewed).
+- Más proveedores legales (Adzuna, JSearch, Jooble) detrás de API keys.
+- Adaptación opcional de CV/carta por oferta (siempre revisada por un humano).
