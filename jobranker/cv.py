@@ -105,8 +105,10 @@ def build_profile(
 
 def _infer_seniority(text: str) -> Optional[str]:
     blob = text.lower()
-    if any(w in blob for w in ["senior", "lead ", "principal", "staff engineer"]):
+    senior_terms = ["senior", "lead", "principal", "staff engineer"]
+    junior_terms = ["junior", "intern", "entry level", "trainee"]
+    if any(_contains_term(blob, t) for t in senior_terms):
         return "senior"
-    if any(w in blob for w in ["junior", "intern", "entry level", "trainee"]):
+    if any(_contains_term(blob, t) for t in junior_terms):
         return "junior"
     return None

@@ -18,6 +18,12 @@ def test_extract_skills_word_boundaries():
     assert "java" not in skills
 
 
+def test_infer_seniority_uses_word_boundaries():
+    # "intern" must not match inside "internas"/"internal"; result is neutral.
+    profile = build_profile("Integraciones internas y APIs internal.")
+    assert profile.seniority is None
+
+
 def test_build_profile_infers_seniority_and_lowercases_roles():
     profile = build_profile(
         "Senior engineer with Python experience.",
